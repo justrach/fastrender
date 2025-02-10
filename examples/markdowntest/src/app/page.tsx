@@ -117,7 +117,7 @@ export default function Home() {
       }
 
       isProcessing = true;
-      const char = FULL_RESPONSE[currentPosition];
+      const char: string = FULL_RESPONSE[currentPosition];
       
       // Handle math delimiters
       if ((char === '$' && FULL_RESPONSE[currentPosition + 1] === '$') || 
@@ -136,7 +136,7 @@ export default function Home() {
           if (mathDelimiter === '$$') currentPosition++;
           
           // Measure render time more accurately
-          if (currentPosition % 3 === 0 || char === '\n') {
+          if (currentPosition % 3 === 0 || char === String.fromCharCode(10)) {
             try {
               const startFast = performance.now();
               const fastRendered = await renderer.renderMixed(buffer);
@@ -164,7 +164,7 @@ export default function Home() {
         mathBuffer += char;
       } else {
         buffer += char;
-        if (currentPosition % 3 === 0 || char === '\n') {
+        if (currentPosition % 3 === 0 || char === String.fromCharCode(10)) {
           try {
             // Measure render time more accurately
             const startFast = performance.now();
