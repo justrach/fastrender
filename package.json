@@ -1,0 +1,44 @@
+{
+  "name": "fastrender",
+  "version": "0.1.1",
+  "description": "Real-time Markdown and LaTeX rendering library using WebAssembly",
+  "main": "dist/fastrender.js",
+  "types": "dist/fastrender.d.ts",
+  "type": "module",
+  "author": "Rach Pradhan",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/justrach/fastrender.git"
+  },
+  "keywords": [
+    "markdown",
+    "latex",
+    "wasm",
+    "webassembly",
+    "katex",
+    "renderer"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "dist",
+    "pkg"
+  ],
+  "scripts": {
+    "build": "wasm-pack build --target web && bun build ./src/fastrender.ts --outdir ./dist --target browser && cp pkg/*.wasm dist/",
+    "prepare": "bun run build",
+    "prepublishOnly": "bun run test",
+    "dev": "bun run build && bun --watch scripts/dev-server.ts",
+    "test": "bun test examples/basic.ts",
+    "benchmark": "cd benchmark && bun run index.ts",
+    "publish": "bun run build && bun run test && npm publish"
+  },
+  "dependencies": {
+    "katex": "^0.16.0"
+  },
+  "devDependencies": {
+    "@types/katex": "^0.16.0"
+  }
+} 

@@ -1,0 +1,29 @@
+[package]
+name = "fastrender"
+version = "0.1.0"
+edition = "2021"
+description = "Real-time Markdown and LaTeX rendering library using WebAssembly"
+license = "MIT"
+repository = "https://github.com/justrach/fastrender"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+wasm-bindgen = "0.2"
+pulldown-cmark = "0.9"  # For Markdown parsing
+web-sys = { version = "0.3", features = [
+    "Document",
+    "Element",
+    "HtmlElement",
+    "Window",
+    "Node"
+]}
+console_error_panic_hook = "0.1"
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = true
+
+[package.metadata.wasm-pack.profile.release.wasm-bindgen]
+wasm-bindgen = "0.2"
+outname = "fastrender" 
