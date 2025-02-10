@@ -1,9 +1,9 @@
 {
   "name": "fastrender",
-  "version": "0.1.1",
+  "version": "0.1.3",
   "description": "Real-time Markdown and LaTeX rendering library using WebAssembly",
   "main": "dist/fastrender.js",
-  "types": "dist/fastrender.d.ts",
+  "types": "dist/types/fastrender.d.ts",
   "type": "module",
   "author": "Rach Pradhan",
   "license": "MIT",
@@ -24,10 +24,11 @@
   },
   "files": [
     "dist",
-    "pkg"
+    "pkg",
+    "dist/types"
   ],
   "scripts": {
-    "build": "wasm-pack build --target web && bun build ./src/fastrender.ts --outdir ./dist --target browser && cp pkg/*.wasm dist/",
+    "build": "wasm-pack build --target web && mkdir -p dist/types && cp src/fastrender.d.ts dist/types/ && bun build ./src/fastrender.ts --outdir ./dist --target browser && cp pkg/*.wasm dist/",
     "prepare": "bun run build",
     "prepublishOnly": "bun run test",
     "dev": "bun run build && bun --watch scripts/dev-server.ts",
