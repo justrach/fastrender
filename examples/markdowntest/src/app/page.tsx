@@ -2,6 +2,12 @@
 
 import { useEffect, useState } from "react";
 import FastRender from "fastrender";
+import { unified } from 'unified';
+import remarkParse from 'remark-parse';
+import remarkMath from 'remark-math';
+import remarkRehype from 'remark-rehype';
+import rehypeKatex from 'rehype-katex';
+import rehypeStringify from 'rehype-stringify';
 
 const FULL_RESPONSE = `# Real-time Math and Text Rendering
 
@@ -23,24 +29,41 @@ This equation describes how quantum states evolve over time. Here, $\\hbar$ is t
 
 In electromagnetism, Maxwell's equations elegantly describe all classical electromagnetic phenomena:
 
-$$
-\\begin{align}
-\\nabla \\cdot \\mathbf{E} &= \\frac{\\rho}{\\epsilon_0} \\\\
-\\nabla \\cdot \\mathbf{B} &= 0 \\\\
-\\nabla \\times \\mathbf{E} &= -\\frac{\\partial\\mathbf{B}}{\\partial t} \\\\
-\\nabla \\times \\mathbf{B} &= \\mu_0\\mathbf{J} + \\mu_0\\epsilon_0\\frac{\\partial\\mathbf{E}}{\\partial t}
-\\end{align}
-$$`;
+
+
+
+`;
+
+
+const remarkProcessor = unified()
+  .use(remarkParse)
+  .use(remarkMath)
+  .use(remarkRehype)
+  .use(rehypeKatex)
+  .use(rehypeStringify);
 
 export default function Home() {
-  const [renderedContent, setRenderedContent] = useState<string>("");
+  const [fastRenderContent, setFastRenderContent] = useState<string>("");
+  const [remarkContent, setRemarkContent] = useState<string>("");
   const [currentText, setCurrentText] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [streamingComplete, setStreamingComplete] = useState(false);
   const [renderer, setRenderer] = useState<FastRender | null>(null);
+  const [metrics, setMetrics] = useState<{
+    fastRenderTime: number;
+    remarkTime: number;
+    renderCount: number;
+  }>({
+    fastRenderTime: 0,
+    remarkTime: 0,
+    renderCount: 0
+  });
 
-  // Initialize the renderer
+  // Add state for warmed up renderers
+  const [warmedUp, setWarmedUp] = useState(false);
+
+  // Initialize and warm up
   useEffect(() => {
     const initRenderer = async () => {
       try {
@@ -51,7 +74,19 @@ export default function Home() {
             strict: false
           }
         });
+        await newRenderer.initialize();
+
+        // Warm up both renderers with multiple iterations
+        const warmupContent = '# Warmup\n$E=mc^2$\n$$\\frac{1}{2}$$';
+        for (let i = 0; i < 5; i++) {
+          await Promise.all([
+            newRenderer.renderMixed(warmupContent),
+            remarkProcessor.process(warmupContent)
+          ]);
+        }
+
         setRenderer(newRenderer);
+        setWarmedUp(true);
         setIsLoading(false);
       } catch (err) {
         console.error('Initialization error:', err);
@@ -63,63 +98,91 @@ export default function Home() {
     initRenderer();
   }, []);
 
-  // Simulate streaming
+  // Streaming effect
   useEffect(() => {
-    if (!renderer || streamingComplete || isLoading) return;
+    if (!renderer || !warmedUp || streamingComplete || isLoading) return;
 
     let currentPosition = 0;
     let buffer = "";
     let mathBuffer = "";
     let inMath = false;
     let mathDelimiter = "";
+    let isProcessing = false;
 
     const streamText = async () => {
+      if (isProcessing) return;
       if (currentPosition >= FULL_RESPONSE.length) {
         setStreamingComplete(true);
         return;
       }
 
+      isProcessing = true;
       const char = FULL_RESPONSE[currentPosition];
       
       // Handle math delimiters
       if ((char === '$' && FULL_RESPONSE[currentPosition + 1] === '$') || 
           (char === '$' && FULL_RESPONSE[currentPosition - 1] !== '$')) {
         if (!inMath) {
-          // Starting math
           inMath = true;
           mathDelimiter = char === '$' && FULL_RESPONSE[currentPosition + 1] === '$' ? '$$' : '$';
           mathBuffer = mathDelimiter;
           if (mathDelimiter === '$$') currentPosition++;
         } else if ((mathDelimiter === '$$' && char === '$' && FULL_RESPONSE[currentPosition + 1] === '$') ||
                    (mathDelimiter === '$' && char === '$')) {
-          // Ending math
           inMath = false;
           mathBuffer += mathDelimiter;
           buffer += mathBuffer;
           mathBuffer = "";
           if (mathDelimiter === '$$') currentPosition++;
           
-          // Render the accumulated text
-          try {
-            const rendered = await renderer.renderMixed(buffer);
-            setRenderedContent(rendered);
-            setCurrentText(buffer);
-          } catch (err) {
-            console.error('Render error:', err);
+          // Measure render time more accurately
+          if (currentPosition % 3 === 0 || char === '\n') {
+            try {
+              const startFast = performance.now();
+              const fastRendered = await renderer.renderMixed(buffer);
+              const fastTime = performance.now() - startFast;
+
+              const startRemark = performance.now();
+              const remarkRendered = await remarkProcessor.process(buffer);
+              const remarkTime = performance.now() - startRemark;
+
+              setMetrics(prev => ({
+                fastRenderTime: prev.fastRenderTime + fastTime,
+                remarkTime: prev.remarkTime + remarkTime,
+                renderCount: prev.renderCount + 1
+              }));
+
+              setFastRenderContent(fastRendered);
+              setRemarkContent(remarkRendered.toString());
+              setCurrentText(buffer);
+            } catch (err) {
+              console.error('Render error:', err);
+            }
           }
         }
       } else if (inMath) {
-        // Accumulate math content
         mathBuffer += char;
       } else {
-        // Regular text
         buffer += char;
-        // Render every few characters instead of every word for smoother fast streaming
         if (currentPosition % 3 === 0 || char === '\n') {
-          // Render at word boundaries
           try {
-            const rendered = await renderer.renderMixed(buffer);
-            setRenderedContent(rendered);
+            // Measure render time more accurately
+            const startFast = performance.now();
+            const fastRendered = await renderer.renderMixed(buffer);
+            const fastTime = performance.now() - startFast;
+
+            const startRemark = performance.now();
+            const remarkRendered = await remarkProcessor.process(buffer);
+            const remarkTime = performance.now() - startRemark;
+
+            setMetrics(prev => ({
+              fastRenderTime: prev.fastRenderTime + fastTime,
+              remarkTime: prev.remarkTime + remarkTime,
+              renderCount: prev.renderCount + 1
+            }));
+
+            setFastRenderContent(fastRendered);
+            setRemarkContent(remarkRendered.toString());
             setCurrentText(buffer);
           } catch (err) {
             console.error('Render error:', err);
@@ -128,27 +191,67 @@ export default function Home() {
       }
 
       currentPosition++;
-      setTimeout(streamText, Math.random() * 8 + 2); // Random delay between 2-10ms for Groq-like speed
+      isProcessing = false;
+      requestAnimationFrame(streamText);
     };
 
     streamText();
-  }, [renderer, isLoading, streamingComplete]);
+  }, [renderer, warmedUp, isLoading, streamingComplete]);
+
+  const avgFastRenderTime = metrics.renderCount ? metrics.fastRenderTime / metrics.renderCount : 0;
+  const avgRemarkTime = metrics.renderCount ? metrics.remarkTime / metrics.renderCount : 0;
+  const speedDifference = avgRemarkTime ? ((avgRemarkTime - avgFastRenderTime) / avgRemarkTime * 100) : 0;
 
   return (
     <div className="min-h-screen p-8">
-      <div className="max-w-4xl mx-auto">
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold">FastRender Demo</h1>
+      <div className="max-w-7xl mx-auto">
+        <div className="flex flex-col gap-4 mb-8">
+          <h1 className="text-3xl font-bold">Renderer Comparison</h1>
+          
+          {/* Performance Metrics */}
+          {metrics.renderCount > 0 && (
+            <div className="grid grid-cols-2 gap-8">
+              <div className="bg-blue-50 rounded-lg p-4">
+                <h3 className="text-lg font-semibold text-blue-800 mb-2">FastRender Performance</h3>
+                <div className="flex flex-col gap-1">
+                  <p className="text-sm text-blue-600">
+                    Average render time: {avgFastRenderTime.toFixed(2)}ms
+                  </p>
+                  {speedDifference > 0 && (
+                    <p className="text-sm font-semibold text-blue-700">
+                      {speedDifference.toFixed(1)}% faster than Remark
+                    </p>
+                  )}
+                </div>
+              </div>
+              
+              <div className="bg-green-50 rounded-lg p-4">
+                <h3 className="text-lg font-semibold text-green-800 mb-2">Remark Performance</h3>
+                <div className="flex flex-col gap-1">
+                  <p className="text-sm text-green-600">
+                    Average render time: {avgRemarkTime.toFixed(2)}ms
+                  </p>
+                  {speedDifference < 0 && (
+                    <p className="text-sm font-semibold text-green-700">
+                      {(-speedDifference).toFixed(1)}% faster than FastRender
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Streaming Status */}
           <div className="flex items-center gap-2">
             {!streamingComplete && !isLoading && (
               <div className="flex items-center gap-2 text-blue-600">
                 <div className="animate-pulse">●</div>
-                Streaming...
+                Streaming... ({metrics.renderCount} renders)
               </div>
             )}
             {streamingComplete && (
               <div className="text-green-600">
-                ✓ Complete
+                ✓ Complete ({metrics.renderCount} total renders)
               </div>
             )}
           </div>
@@ -156,7 +259,7 @@ export default function Home() {
         
         {isLoading && (
           <div className="p-4 bg-blue-50 text-blue-700 rounded">
-            Loading renderer...
+            Loading renderers...
           </div>
         )}
 
@@ -166,19 +269,49 @@ export default function Home() {
           </div>
         )}
 
-        {renderedContent && (
-          <div className="relative">
-            <div 
-              className="prose prose-lg max-w-none prose-pre:bg-gray-50 prose-pre:border prose-pre:border-gray-200 prose-pre:rounded-lg"
-              dangerouslySetInnerHTML={{ __html: renderedContent }} 
-            />
-            {!streamingComplete && !isLoading && (
-              <div className="h-4 w-4 mt-4">
-                <div className="animate-pulse">▋</div>
+        <div className="grid grid-cols-2 gap-8">
+          {/* FastRender Column */}
+          <div>
+            <div className="mb-4 p-2 bg-blue-50 rounded flex justify-between items-center">
+              <h2 className="text-xl font-semibold text-blue-800">FastRender</h2>
+              <span className="text-sm text-blue-600">WebAssembly-powered</span>
+            </div>
+            {fastRenderContent && (
+              <div className="relative">
+                <div 
+                  className="prose prose-lg max-w-none prose-pre:bg-gray-50 prose-pre:border prose-pre:border-gray-200 prose-pre:rounded-lg"
+                  dangerouslySetInnerHTML={{ __html: fastRenderContent }} 
+                />
+                {!streamingComplete && !isLoading && (
+                  <div className="h-4 w-4 mt-4">
+                    <div className="animate-pulse">▋</div>
+                  </div>
+                )}
               </div>
             )}
           </div>
-        )}
+
+          {/* Remark Column */}
+          <div>
+            <div className="mb-4 p-2 bg-green-50 rounded flex justify-between items-center">
+              <h2 className="text-xl font-semibold text-green-800">Remark</h2>
+              <span className="text-sm text-green-600">JavaScript-based</span>
+            </div>
+            {remarkContent && (
+              <div className="relative">
+                <div 
+                  className="prose prose-lg max-w-none prose-pre:bg-gray-50 prose-pre:border prose-pre:border-gray-200 prose-pre:rounded-lg"
+                  dangerouslySetInnerHTML={{ __html: remarkContent }} 
+                />
+                {!streamingComplete && !isLoading && (
+                  <div className="h-4 w-4 mt-4">
+                    <div className="animate-pulse">▋</div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
