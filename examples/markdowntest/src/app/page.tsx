@@ -8,6 +8,7 @@ import remarkMath from 'remark-math';
 import remarkRehype from 'remark-rehype';
 import rehypeKatex from 'rehype-katex';
 import rehypeStringify from 'rehype-stringify';
+import Header from './components/Header';
 
 const FULL_RESPONSE = `# Real-time Math and Text Rendering
 
@@ -206,15 +207,7 @@ export default function Home() {
     <div className="min-h-screen p-8">
       <div className="max-w-7xl mx-auto">
         <div className="flex flex-col gap-4 mb-8">
-          <div className="flex justify-between items-center">
-            <h1 className="text-3xl font-bold">Renderer Comparison</h1>
-            <a 
-              href="/benchmark"
-              className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-medium transition-colors"
-            >
-              View Raw Benchmarks →
-            </a>
-          </div>
+          <Header title="Renderer Comparison" />
           
           {/* Performance Metrics */}
           {metrics.renderCount > 0 && (

@@ -8,6 +8,7 @@ import remarkMath from 'remark-math';
 import remarkRehype from 'remark-rehype';
 import rehypeKatex from 'rehype-katex';
 import rehypeStringify from 'rehype-stringify';
+import Header from '../components/Header';
 
 const TEST_CASES = {
   simple: `# Hello World
@@ -104,7 +105,7 @@ export default function BenchmarkPage() {
     setSelectedTest(testName);
     setLiveContent({ fastRender: '', remark: '' });
     
-    const content = TEST_CASES[testName];
+    const content = TEST_CASES[testName as keyof typeof TEST_CASES];
     const renderer = new FastRender();
     await renderer.initialize();
 
@@ -122,8 +123,7 @@ export default function BenchmarkPage() {
   return (
     <div className="min-h-screen p-8">
       <div className="max-w-4xl mx-auto">
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold">Raw Performance Benchmark</h1>
+        <Header title="Raw Performance Benchmark" showBenchmarkLink={false}>
           <button
             onClick={() => {
               setSelectedTest(null);
@@ -138,7 +138,7 @@ export default function BenchmarkPage() {
           >
             {isRunning ? 'Running...' : 'Run Benchmark'}
           </button>
-        </div>
+        </Header>
 
         {Object.entries(results).map(([name, result]) => (
           <div 
