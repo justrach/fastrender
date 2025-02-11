@@ -52,6 +52,8 @@ export default function BenchmarkPage() {
       fastRender: number;
       remark: number;
       difference: number;
+      fastRenderMemory: number;
+      remarkMemory: number;
     };
   }>({});
   const [isRunning, setIsRunning] = useState(false);
@@ -76,24 +78,34 @@ export default function BenchmarkPage() {
 
       const iterations = 100;
       
+      // Get initial memory
+      const initialMemory = (performance as any).memory?.usedJSHeapSize || 0;
+      
       // FastRender timing
       const startFast = performance.now();
       for (let i = 0; i < iterations; i++) {
         await renderer.renderMixed(content);
       }
       const fastTime = (performance.now() - startFast) / iterations;
+      const fastMemory = ((performance as any).memory?.usedJSHeapSize - initialMemory) || 0;
 
+      // Reset memory measurement
+      const midMemory = (performance as any).memory?.usedJSHeapSize || 0;
+      
       // Remark timing
       const startRemark = performance.now();
       for (let i = 0; i < iterations; i++) {
         await remarkProcessor.process(content);
       }
       const remarkTime = (performance.now() - startRemark) / iterations;
+      const remarkMemory = ((performance as any).memory?.usedJSHeapSize - midMemory) || 0;
 
       newResults[name] = {
         fastRender: fastTime,
         remark: remarkTime,
-        difference: ((remarkTime - fastTime) / remarkTime) * 100
+        difference: ((remarkTime - fastTime) / remarkTime) * 100,
+        fastRenderMemory: fastMemory / 1024 / 1024, // Convert to MB
+        remarkMemory: remarkMemory / 1024 / 1024
       };
     }
 
@@ -153,10 +165,12 @@ export default function BenchmarkPage() {
               <div className="space-y-2">
                 <p className="text-sm text-gray-600">FastRender (WebAssembly)</p>
                 <p className="text-2xl font-mono">{result.fastRender.toFixed(2)}ms</p>
+                <p className="text-sm text-gray-500">Memory: {result.fastRenderMemory.toFixed(2)}MB</p>
               </div>
               <div className="space-y-2">
                 <p className="text-sm text-gray-600">Remark (JavaScript)</p>
                 <p className="text-2xl font-mono">{result.remark.toFixed(2)}ms</p>
+                <p className="text-sm text-gray-500">Memory: {result.remarkMemory.toFixed(2)}MB</p>
               </div>
             </div>
             <div className="mt-4">
@@ -170,6 +184,7 @@ export default function BenchmarkPage() {
             </div>
             <div className="mt-4 text-sm text-gray-500">
               Average over 100 iterations
+              {(performance as any).memory ? "" : " (Memory metrics only available in Chrome)"}
             </div>
           </div>
         ))}
