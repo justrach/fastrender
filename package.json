@@ -1,6 +1,6 @@
 {
   "name": "fastrender",
-  "version": "0.3.3",
+  "version": "0.3.7",
   "description": "Real-time Markdown and LaTeX rendering library using WebAssembly",
   "main": "dist/fastrender.js",
   "types": "dist/types/fastrender.d.ts",
