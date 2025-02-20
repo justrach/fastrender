@@ -76,16 +76,23 @@ export class FastRender {
    */
   renderLatex(content: string, displayMode = false): string {
     try {
-      // Clean up the content
       content = content
         .replace(/&amp;/g, '&')
         .replace(/&gt;/g, '>')
         .replace(/&lt;/g, '<')
         .replace(/\\text/g, '\\mathrm')
+        // Handle vector calculus notation better
+        .replace(/\\nabla\s*\\times/g, '\\nabla\\times')
+        .replace(/\\nabla\s*\\cdot/g, '\\nabla\\cdot')
+        // Handle partial derivatives better
+        .replace(/\\partial\s*([^{])/g, '\\partial{$1}')
+        .replace(/\\partial\{([^}]+)\}/g, '\\partial{$1}')
         // Handle subscripts better
-        .replace(/_\{?\\?([a-zA-Z]+)\}?/g, '_{$1}')
+        .replace(/_([a-zA-Z])/g, '_{$1}')
+        .replace(/_\{([^}]+)\}/g, '_{$1}')
         // Handle superscripts better
-        .replace(/\^\{?\\?([a-zA-Z0-9]+)\}?/g, '^{$1}');
+        .replace(/\^([a-zA-Z0-9])/g, '^{$1}')
+        .replace(/\^\{([^}]+)\}/g, '^{$1}');
 
       return katex.renderToString(content, {
         displayMode,
@@ -124,7 +131,45 @@ export class FastRender {
           // Common physics notation
           '\\dd': '\\mathrm{d}',
           '\\pdiff': ['\\frac{\\partial #1}{\\partial #2}', 2],
-          '\\tdiff': ['\\frac{\\mathrm{d} #1}{\\mathrm{d} #2}', 2]
+          '\\tdiff': ['\\frac{\\mathrm{d} #1}{\\mathrm{d} #2}', 2],
+          // Additional physics macros
+          '\\gamma': '\\gamma',
+          '\\left': '\\left',
+          '\\right': '\\right',
+          '\\sin': '\\sin',
+          '\\sqrt': '\\sqrt',
+          // Special spacing
+          '&=': '& =',
+          '& =': '& =',
+          // Common fractions
+          '\\half': '\\frac{1}{2}',
+          '\\third': '\\frac{1}{3}',
+          '\\quarter': '\\frac{1}{4}',
+          // Matrix environments
+          '\\pmatrix': ['\\begin{pmatrix}#1\\end{pmatrix}', 1],
+          // Vector calculus
+          '\\divergence': '\\nabla \\cdot',
+          '\\gradient': '\\nabla',
+          // Partial derivatives
+          '\\partial': '\\partial',
+          '\\pdv': ['\\frac{\\partial #1}{\\partial #2}', 2],
+          // Better fraction handling
+          '\\frac': ['\\frac{#1}{#2}', 2],
+          // Matrix delimiters
+          '\\begin{pmatrix}': '\\begin{pmatrix}',
+          '\\end{pmatrix}': '\\end{pmatrix}',
+          // Vector calculus specific
+          '\\cdot': '\\cdot',
+          '\\times': '\\times',
+          '\\nabla': '\\nabla',
+          // Subscript handling
+          '_x': '_{x}',
+          '_y': '_{y}',
+          '_z': '_{z}',
+          // Partial derivative shortcuts
+          '\\pdx': ['\\frac{\\partial #1}{\\partial x}', 1],
+          '\\pdy': ['\\frac{\\partial #1}{\\partial y}', 1],
+          '\\pdz': ['\\frac{\\partial #1}{\\partial z}', 1]
         },
         ...this.options.katexOptions
       });
@@ -172,9 +217,30 @@ export class FastRender {
     
     html = decodeHTML(html);
 
+    // Handle special LaTeX commands in text first
+    html = html.replace(/\\nabla\\s*\\times\\s*\\mathbf\{([^}]+)\}/g, (match, content) => {
+      return `\\(\\nabla \\times \\mathbf{${content}}\\)`;
+    });
+
+    // Handle pmatrix environments in square brackets
+    html = html.replace(/\[.*?\\begin\{pmatrix\}([\s\S]*?)\\end\{pmatrix\}.*?\]/g, (match) => {
+      return `\\[${match.slice(1, -1)}\\]`;
+    });
+
+    // Handle \begin{aligned} in square brackets first
+    html = html.replace(/\[\\begin\{aligned\}([\s\S]*?)\\end\{aligned\}\]/g, (match, content) => {
+      const cleanContent = content
+        .trim()
+        .split('\\\\')
+        .map(line => line.trim())
+        .join(' \\\\ ');
+      return `\\[\\begin{aligned}${cleanContent}\\end{aligned}\\]`;
+    });
+
     // Handle square bracket equations first
     html = html.replace(/\[(.*?)\]/g, (match, content) => {
-      if (content.includes('\\') || content.includes('_') || content.includes('^')) {
+      if (content.includes('\\') || content.includes('_') || content.includes('^') || 
+          content.includes('=') || content.includes('pmatrix')) {
         return `\\[${content}\\]`;
       }
       return match;
@@ -194,7 +260,7 @@ export class FastRender {
     html = html.replace(/\\\[([\s\S]*?)\\\]|\$\$([\s\S]*?)\$\$/g, (match, tex1, tex2) => {
       const tex = (tex1 || tex2).trim();
       // Check if we need to wrap in aligned environment
-      if (tex.includes('\\\\') || tex.includes('&')) {
+      if ((tex.includes('\\\\') || tex.includes('&')) && !tex.includes('\\begin{aligned}')) {
         return this.renderLatex(`\\begin{aligned}${tex}\\end{aligned}`, true);
       }
       return this.renderLatex(tex, true);
