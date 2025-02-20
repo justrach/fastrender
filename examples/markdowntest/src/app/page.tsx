@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from "react";
-import FastRender from "fastrender";
+import { FastRender } from "fastrender";
 import { unified } from 'unified';
 import remarkParse from 'remark-parse';
 import remarkMath from 'remark-math';

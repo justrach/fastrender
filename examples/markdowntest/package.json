@@ -9,7 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "fastrender": "^0.1.3",
+    "fastrender": "0.3.5",
     "next": "15.1.6",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
