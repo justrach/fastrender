@@ -84,6 +84,8 @@ export class FastRender {
         // Handle vector calculus notation better
         .replace(/\\nabla\s*\\times/g, '\\nabla\\times')
         .replace(/\\nabla\s*\\cdot/g, '\\nabla\\cdot')
+        // Handle phi better
+        .replace(/\\phi(?![a-zA-Z])/g, '\\phi ')
         // Handle partial derivatives better
         .replace(/\\partial\s*([^{])/g, '\\partial{$1}')
         .replace(/\\partial\{([^}]+)\}/g, '\\partial{$1}')
@@ -169,7 +171,13 @@ export class FastRender {
           // Partial derivative shortcuts
           '\\pdx': ['\\frac{\\partial #1}{\\partial x}', 1],
           '\\pdy': ['\\frac{\\partial #1}{\\partial y}', 1],
-          '\\pdz': ['\\frac{\\partial #1}{\\partial z}', 1]
+          '\\pdz': ['\\frac{\\partial #1}{\\partial z}', 1],
+          // Greek letters with better spacing
+          '\\phi': '\\phi\\,',
+          '\\nabla': '\\nabla\\,',
+          // Vector field notation
+          '\\mathbf': ['\\mathbf{#1}', 1],
+          '\\vec': ['\\vec{#1}', 1]
         },
         ...this.options.katexOptions
       });
@@ -227,6 +235,29 @@ export class FastRender {
       return `\\[${match.slice(1, -1)}\\]`;
     });
 
+    // Handle inline LaTeX in parentheses first
+    html = html.replace(/\((\\[a-zA-Z]+[^)]*)\)/g, (match, content) => {
+      return `\\(${content}\\)`;
+    });
+
+    // Handle vector calculus expressions in text
+    html = html.replace(/\\nabla\s*(\\cdot|\\times|\\otimes)?\s*\\mathbf\{([^}]+)\}/g, (match) => {
+      return `\\(${match}\\)`;
+    });
+
+    // Handle LaTeX in square brackets better
+    html = html.replace(/\[(.*?)\]/g, (match, content) => {
+      // If it contains LaTeX commands or math symbols
+      if (content.match(/\\[a-zA-Z]+|_|\^|\\begin|\\end|\{|\}|=|\+|-|\*/)) {
+        // If it's already a LaTeX environment, don't wrap it again
+        if (content.startsWith('\\[') || content.startsWith('$$')) {
+          return match;
+        }
+        return `\\[${content}\\]`;
+      }
+      return match;
+    });
+
     // Handle \begin{aligned} in square brackets first
     html = html.replace(/\[\\begin\{aligned\}([\s\S]*?)\\end\{aligned\}\]/g, (match, content) => {
       const cleanContent = content
@@ -235,25 +266,6 @@ export class FastRender {
         .map(line => line.trim())
         .join(' \\\\ ');
       return `\\[\\begin{aligned}${cleanContent}\\end{aligned}\\]`;
-    });
-
-    // Handle square bracket equations first
-    html = html.replace(/\[(.*?)\]/g, (match, content) => {
-      if (content.includes('\\') || content.includes('_') || content.includes('^') || 
-          content.includes('=') || content.includes('pmatrix')) {
-        return `\\[${content}\\]`;
-      }
-      return match;
-    });
-
-    // Handle aligned equations first
-    html = html.replace(/\\begin\{(aligned|equation\*?)\}([\s\S]*?)\\end\{\1\}/g, (match, env, content) => {
-      const cleanContent = content
-        .trim()
-        .split('\\\\')
-        .map(line => line.trim())
-        .join(' \\\\ ');
-      return `$$${cleanContent}$$`;
     });
 
     // Handle display math with proper newlines
