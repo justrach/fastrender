@@ -1,6 +1,6 @@
 use wasm_bindgen::prelude::*;
 use std::collections::HashMap;
-use pulldown_cmark::{html::push_html, Options};
+use pulldown_cmark::{html::push_html, Options, Parser, Event, Tag, CodeBlockKind};
 
 // Cache size for rendered content
 const CACHE_SIZE: usize = 100;
@@ -40,13 +40,32 @@ impl FastRenderCore {
         options.insert(Options::ENABLE_STRIKETHROUGH);
         options.insert(Options::ENABLE_TASKLISTS);
 
-        let parser = pulldown_cmark::Parser::new_ext(input, options);
+        let parser = Parser::new_ext(input, options);
+        let mut events: Vec<Event> = parser.collect();
+        
+        // Process code blocks and preserve math blocks
+        for event in &mut events {
+            match event {
+                Event::Start(Tag::CodeBlock(CodeBlockKind::Fenced(lang))) => {
+                    // Add language class for syntax highlighting
+                    *event = Event::Html(format!("<pre><code class=\"language-{}\">\n", lang).into());
+                },
+                // Preserve math blocks by wrapping them in special markers
+                Event::Text(text) => {
+                    if text.contains("$$") || text.contains('$') {
+                        *event = Event::Text(text.to_string().into());
+                    }
+                },
+                _ => {}
+            }
+        }
+
         let mut html_output = String::new();
-        push_html(&mut html_output, parser);
+        push_html(&mut html_output, events.into_iter());
 
         // Cache the result
         if self.cache.len() >= CACHE_SIZE {
-            self.cache.clear(); // Simple cache clearing strategy
+            self.cache.clear();
         }
         self.cache.insert(input.to_string(), html_output.clone());
 

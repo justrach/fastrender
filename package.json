@@ -1,6 +1,6 @@
 {
   "name": "fastrender",
-  "version": "0.1.3",
+  "version": "0.3.3",
   "description": "Real-time Markdown and LaTeX rendering library using WebAssembly",
   "main": "dist/fastrender.js",
   "types": "dist/types/fastrender.d.ts",
@@ -37,9 +37,12 @@
     "publish": "bun run build && bun run test && npm publish"
   },
   "dependencies": {
-    "katex": "^0.16.0"
+    "@types/node": "^22.13.4",
+    "katex": "^0.16.0",
+    "prismjs": "^1.29.0"
   },
   "devDependencies": {
-    "@types/katex": "^0.16.0"
+    "@types/katex": "^0.16.0",
+    "@types/prismjs": "^1.26.5"
   }
-} 
+}

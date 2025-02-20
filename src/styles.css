@@ -1,0 +1,83 @@
+/* Base styles for code blocks */
+pre {
+  position: relative;
+  margin: 1em 0;
+  padding: 1em;
+  background: #f8f9fa;
+  border-radius: 0.5em;
+  overflow-x: auto;
+}
+
+code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.9em;
+}
+
+/* LaTeX styles */
+.katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 1em 0;
+  margin: 1em 0;
+  text-align: center;
+}
+
+.katex {
+  font-size: 1.1em;
+  max-width: 100%;
+}
+
+/* Copy button styles */
+.code-wrapper {
+  position: relative;
+}
+
+.copy-button {
+  position: absolute;
+  top: 0.5em;
+  right: 0.5em;
+  padding: 0.5em;
+  background: #1f2937;
+  color: white;
+  border: none;
+  border-radius: 0.25em;
+  opacity: 0;
+  transition: opacity 0.2s;
+  cursor: pointer;
+}
+
+.code-wrapper:hover .copy-button {
+  opacity: 1;
+}
+
+.copy-button:hover {
+  background: #374151;
+}
+
+/* Success state */
+.copy-button.success {
+  background: #059669;
+}
+
+/* Fallback for failed LaTeX rendering */
+.katex-fallback {
+  font-family: "Computer Modern", serif;
+  background: #f8f9fa;
+  padding: 0.2em 0.4em;
+  border-radius: 0.2em;
+  color: #1a1a1a;
+}
+
+/* Ensure math displays don't overflow */
+.katex-display > .katex {
+  display: inline-block;
+  white-space: nowrap;
+  max-width: 100%;
+  overflow-x: auto;
+  text-align: initial;
+}
+
+/* Better spacing for math in text */
+.katex-inline {
+  padding: 0 0.2em;
+} 
